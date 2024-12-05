@@ -5,63 +5,83 @@
         die("Accès refusé");
     }
 
-    // Réservation d'une voiture
-    if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['voiture_id'])) {
-        $voiture_id = $_POST['voiture_id'];
-        $date_debut = $_POST['date_debut'];
-        $date_fin = $_POST['date_fin'];
-        $client_id = $_SESSION['client_id'];
-
-        // Vérifier si 'date_debut' et 'date_fin' existent dans $_POST avant de les utiliser
-        $date_debut = isset($_POST['date_debut']) ? $_POST['date_debut'] : null;
-        $date_fin = isset($_POST['date_fin']) ? $_POST['date_fin'] : null;
+    // Recherche par date
+    $voitures_disponibles = [];
+    if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['date_debut']) && isset($_GET['date_fin'])) {
+        $date_debut = $_GET['date_debut'];
+        $date_fin = $_GET['date_fin'];
 
         if ($date_debut && $date_fin) {
-            $client_id = $_SESSION['client_id'];
-
-            // Enregistrer la réservation
-            $stmt = $conn->prepare("INSERT INTO Reservations (Date_debut, Date_fin, Voiture_ID, Client_ID) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$date_debut, $date_fin, $voiture_id, $client_id]);
-
-            // Mettre à jour la disponibilité de la voiture
-            $updateStmt = $conn->prepare("UPDATE Voitures SET Disponibilite = 0 WHERE ID = ?");
-            $updateStmt->execute([$voiture_id]);
-
-            echo "<p>Réservation confirmée !</p>";
-        }else{
-            echo "<p class='alert alert-warning'>Veuillez sélectionner une date de début et une date de fin.</p>";
+            // Requête pour trouver les voitures disponibles dans la plage de dates
+            $stmt = $conn->prepare("
+                SELECT * 
+                FROM Voitures v 
+                WHERE v.Disponibilite = 1 
+                AND NOT EXISTS (
+                    SELECT 1 
+                    FROM Reservations r 
+                    WHERE r.Voiture_ID = v.ID 
+                    AND (
+                        (r.Date_debut <= ? AND r.Date_fin >= ?) OR 
+                        (r.Date_debut <= ? AND r.Date_fin >= ?)
+                    )
+                )
+            ");
+            $stmt->execute([$date_fin, $date_debut, $date_debut, $date_fin]);
+            $voitures_disponibles = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
     }
 
-    // Recherche par marque
-    $marque_recherchee = '';
-    $voitures_disponibles = [];
-    if (isset($_GET['marque'])) {
-        $marque_recherchee = $_GET['marque'];
-        $stmt = $conn->prepare("SELECT * FROM Voitures WHERE Disponibilite = 1 AND Marque LIKE ?");
-        $stmt->execute(['%' . $marque_recherchee . '%']);
-        $voitures_disponibles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } else {
-        $stmt = $conn->query("SELECT * FROM Voitures WHERE Disponibilite = 1");
-        $voitures_disponibles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    // Annulation réservation
-    if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_reservation'])) {
-        $reservation_id = $_POST['reservation_id'];
-        $voiture_id = $_POST['voiture_id'];
-
-        // Supprimer la réservation
-        $stmt = $conn->prepare("DELETE FROM Reservations WHERE ID = ?");
-        $stmt->execute([$reservation_id]);
-
-        // Remettre la voiture disponible
-        $updateStmt = $conn->prepare("UPDATE Voitures SET Disponibilite = 1 WHERE ID = ?");
-        $updateStmt->execute([$voiture_id]);
-
-        echo "<p class='alert alert-success'>Réservation supprimée avec succès !</p>";
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        if (isset($_POST['voiture_id']) && isset($_POST['date_debut']) && isset($_POST['date_fin'])) {
+            // Réservation d'une voiture
+            $voiture_id = $_POST['voiture_id'];
+            $date_debut = $_POST['date_debut'];
+            $date_fin = $_POST['date_fin'];
+            $client_id = $_SESSION['client_id'];
+    
+            // Vérification de disponibilité
+            $stmt = $conn->prepare("
+                SELECT COUNT(*) as count 
+                FROM Reservations 
+                WHERE Voiture_ID = ? 
+                  AND (
+                    (Date_debut <= ? AND Date_fin >= ?) OR 
+                    (Date_debut <= ? AND Date_fin >= ?)
+                  )
+            ");
+            $stmt->execute([$voiture_id, $date_fin, $date_debut, $date_debut, $date_fin]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+            if ($result['count'] == 0) {
+                // Réserver la voiture
+                $stmt = $conn->prepare("INSERT INTO Reservations (Date_debut, Date_fin, Voiture_ID, Client_ID) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$date_debut, $date_fin, $voiture_id, $client_id]);
+    
+                echo "<p class='alert alert-success'>Réservation confirmée !</p>";
+            } else {
+                echo "<p class='alert alert-warning'>Cette voiture n'est pas disponible pour les dates sélectionnées.</p>";
+            }
+        } elseif (isset($_POST['delete_reservation'])) {
+            // Annulation de la réservation
+            $reservation_id = $_POST['reservation_id'];
+            $voiture_id = $_POST['voiture_id'];
+    
+            // Supprimer la réservation
+            $stmt = $conn->prepare("DELETE FROM Reservations WHERE ID = ?");
+            $stmt->execute([$reservation_id]);
+    
+            // Remettre la voiture disponible
+            $updateStmt = $conn->prepare("UPDATE Voitures SET Disponibilite = 1 WHERE ID = ?");
+            $updateStmt->execute([$voiture_id]);
+    
+            echo "<p class='alert alert-success'>Réservation annulée avec succès !</p>";
+        }
     }
 ?>
+
+
+
 
 <!DOCTYPE html>
 <html lang="fr">
@@ -156,10 +176,20 @@
         <h2 class="text-center reservation-title">Réserver une voiture</h2>
 
         <!-- Formulaire de recherche -->
+        <h3>Rechercher des voitures disponibles par date</h3>
         <form method="GET" action="client_dashboard.php" class="my-4">
-            <div class="input-group">
-                <input type="text" name="marque" class="form-control" placeholder="Rechercher par marque" value="<?php echo htmlspecialchars($marque_recherchee ?? ''); ?>">
-                <button type="submit" class="btn btn-primary">Rechercher</button>
+            <div class="row">
+                <div class="col-md-5">
+                    <label for="date_debut" class="form-label">Date de début</label>
+                    <input type="date" id="date_debut" name="date_debut" class="form-control" required>
+                </div>
+                <div class="col-md-5">
+                    <label for="date_fin" class="form-label">Date de fin</label>
+                    <input type="date" id="date_fin" name="date_fin" class="form-control" required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Rechercher</button>
+                </div>
             </div>
         </form>
 
@@ -198,6 +228,7 @@
                 </tbody>
             </table>
         </div>
+
 
         <!-- Liste des réservations -->
         <h3 class="mt-5">Vos voitures réservées</h3>

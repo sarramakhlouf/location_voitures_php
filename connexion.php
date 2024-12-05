@@ -43,14 +43,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link href="lib/owlcarousel/assets/owl.carousel.min.css" rel="stylesheet">
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
     <style>
         body {
-            background-color: #f2f2f2;
             font-family: 'Lato', sans-serif;
+            height: 100vh;
+           /*display: flex;
+            justify-content: center;
+            align-items: center;*/
+
         }
         .nav-bar {
-            background-color: #fff;
+            background: transparent;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         .navbar-brand h1 {
@@ -67,10 +70,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             color: #d31b1b;
         }
         .login-form {
-            background: #fff;
+            background: transparent;
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 10px rgba(0, 0, 0, 0.1);
             max-width: 400px;
             margin: 50px auto;
             margin-top: 100px
@@ -81,18 +84,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin-left: 150px
         }
         .login-form button {
-            background: #d31b1b;
+            background-color: #001f3f;
             color: #fff;
+            border: none;
         }
         .login-form button:hover {
-            background: #b51515;
-        }
-        .forgot-password a {
-            color: #d31b1b;
-            text-decoration: none;
-        }
-        .forgot-password a:hover {
-            text-decoration: underline;
+            background-color: #001a35;
         }
     </style>
 </head>
@@ -123,7 +120,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <!-- Formulaire de connexion -->
     <div class="login-form">
-        <img src="img/user-icon.png" alt="Icône utilisateur">
+        <h2>Connectez-vous</h2>
         <form method="POST" action="connexion.php">
             <div class="mb-3">
                 <input type="text" name="email" class="form-control" placeholder="Email" required>
@@ -131,7 +128,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="mb-3">
                 <input type="password" name="mot_de_passe" class="form-control" placeholder="Mot de passe" required>
             </div>
-            <button type="submit" class="btn btn-danger w-100">Se connecter</button>
+            <button type="submit" class="btn btn-navy w-100">Se connecter</button>
+            <label>vous n'avez pas un compte ? <a href="inscription.php">Inscrivez-vous</a></label>
         </form>
     </div>
 

@@ -120,6 +120,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </select>
                 </div>
                 <button type="submit" class="btn btn-danger w-100">S'inscrire</button>
+                <label>Vous avez déjà un compte ? <a href="connexion.php">connectez-vous</a></label>
             </form>
         </div>
     </div>
